@@ -58,9 +58,8 @@ impl TransactionManager {
     {
         let mut tx = self.pg_pool.begin().await?;
         let mut tx_ctx = TxCtx { conn: &mut tx };
-        let res = exec_fn(&mut tx_ctx).await;
-
+        let res = exec_fn(&mut tx_ctx).await?;
         tx.commit().await?;
-        res
+        Ok(res)
     }
 }
