@@ -1,13 +1,10 @@
 use std::error::Error;
 use std::sync::Arc;
 
-use futures::future::FutureExt;
-
-use crate::domain::ports::{ThreadSafe, UserRepo};
+use crate::domain::ports::ThreadSafe;
 use crate::domain::{dto::user_dto::CreateUserDTO, entities};
-use crate::repository::TransactionManager;
+use crate::repository::{user_repo, TransactionManager};
 
-#[derive(Clone)]
 pub struct Context {
     manager: TransactionManager,
 }
@@ -25,15 +22,14 @@ impl Context {
         &self,
         payload: CreateUserDTO,
     ) -> Result<entities::User, Box<dyn Error + Send + Sync>> {
-        self.manager
-            .with_tx(|ctx| {
-                async {
-                    let mut ur = ctx.user_repo();
+        let mut db_ctx = self.manager.init_db_context_with_tx().await?;
 
-                    ur.create_user(payload).await
-                }
-                .boxed()
-            })
-            .await
+        let res = user_repo::create_user(&mut db_ctx, payload).await;
+        if res.is_err() {
+            db_ctx.rollback().await?;
+        }
+
+        db_ctx.commit().await?;
+        Ok(res.unwrap())
     }
 }
