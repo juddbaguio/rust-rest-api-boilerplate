@@ -2,21 +2,19 @@
 
 use std::error::Error;
 
+use sqlx::{Executor, Postgres};
+
 use crate::domain::{dto::user_dto::CreateUserDTO, entities};
 
-use super::{models::users, DbContext};
+use super::models::users;
 
-// pub struct UserRepositoryInteractor {}
-
-// impl ThreadSafe for UserRepositoryInteractor {}
-
-// #[async_trait]
-// impl UserRepo for UserRepositoryInteractor {}
-
-pub async fn create_user<'a>(
-    db: &mut DbContext<'a>,
+pub async fn create_user<'e, 'c: 'e, E>(
+    db_executor: E,
     payload: CreateUserDTO,
-) -> Result<entities::User, Box<dyn Error + Send + Sync>> {
+) -> Result<entities::User, Box<dyn Error + Send + Sync>>
+where
+    E: 'e + Executor<'c, Database = Postgres>,
+{
     let create_user_stmt = sqlx::query_as::<_, users::Model>(
         r#"
             INSERT INTO users (
@@ -42,10 +40,7 @@ pub async fn create_user<'a>(
     .bind(payload.username)
     .bind(payload.password);
 
-    let create_user_res = match db.pg_tx {
-        Some(ref mut tx) => create_user_stmt.fetch_one(&mut **tx).await?,
-        None => create_user_stmt.fetch_one(&db.pg_pool).await?,
-    };
+    let create_user_res = create_user_stmt.fetch_one(db_executor).await?;
 
     Ok(entities::User::from(create_user_res))
 }

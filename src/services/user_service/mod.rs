@@ -3,16 +3,16 @@ use std::sync::Arc;
 
 use crate::domain::ports::ThreadSafe;
 use crate::domain::{dto::user_dto::CreateUserDTO, entities};
-use crate::repository::{user_repo, TransactionManager};
+use crate::repository::{user_repo, DbManager};
 
 pub struct Context {
-    manager: TransactionManager,
+    manager: DbManager,
 }
 
 impl ThreadSafe for Context {}
 
 impl Context {
-    pub fn new(manager: TransactionManager) -> Arc<Self> {
+    pub fn new(manager: DbManager) -> Arc<Self> {
         Arc::new(Self { manager })
     }
 }
@@ -22,14 +22,11 @@ impl Context {
         &self,
         payload: CreateUserDTO,
     ) -> Result<entities::User, Box<dyn Error + Send + Sync>> {
-        let mut db_ctx = self.manager.init_db_context_with_tx().await?;
+        let mut tx = self.manager.begin_tx().await?;
 
-        let res = user_repo::create_user(&mut db_ctx, payload).await;
-        if res.is_err() {
-            db_ctx.rollback().await?;
-        }
+        let res = user_repo::create_user(&mut *tx, payload).await?;
 
-        db_ctx.commit().await?;
-        Ok(res.unwrap())
+        tx.commit().await?;
+        Ok(res)
     }
 }
