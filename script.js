@@ -2,15 +2,12 @@ import http from 'k6/http';
 
 export const options = {
   stages: [
-    { duration: '30s', target: 500 },
-    { duration: '1m', target: 1000 },
-    { duration: '30s', target: 500 }
-
+    { duration: '5s', target: 10 }
   ],
 };
 
 export default function () {
-  const url = 'http://127.0.0.1:3000';
+  const url = 'http://127.0.0.1:3000/users';
   const payload = JSON.stringify({
     first_name: "Judd Misael",
     last_name: "Baguio",
