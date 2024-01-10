@@ -44,8 +44,7 @@ pub async fn run() -> Result<(), Box<dyn Error>> {
         .with_graceful_shutdown(shutdown_signal())
         .await?;
 
-    let _ = tokio::join!(worker);
-
+    worker.abort();
     Ok(())
 }
 
@@ -68,7 +67,9 @@ async fn shutdown_signal() {
     let terminate = std::future::pending::<()>();
 
     tokio::select! {
-        _ = ctrl_c => {},
+        _ = ctrl_c => {
+            println!("running!")
+        },
         _ = terminate => {},
     }
 }
